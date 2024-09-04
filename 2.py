@@ -94,7 +94,6 @@ class Lexer:
 class AST:
     pass
 
-
 class BinOp(AST):
     def __init__(self, left, op, right):
         self.left = left
@@ -114,40 +113,42 @@ class Parser:
         self.current_token = self.lexer.get_next_token()
 
     def error(self):
-        raise ParsingError("Lexical error")
+        raise ParsingError("Parsing error")
 
     def eat(self, token_type):
-        
         if self.current_token.type == token_type:
             self.current_token = self.lexer.get_next_token()
         else:
             self.error()
 
     def factor(self):
-       
+        # Вираз в дужках
         token = self.current_token
         if token.type == TokenType.INTEGER:
             self.eat(TokenType.INTEGER)
             return Num(token)
-        # якщо дужки
+        elif token.type == TokenType.LPAREN:
+            self.eat(TokenType.LPAREN)
             node = self.expr()
+            self.eat(TokenType.RPAREN)
             return node
 
     def term(self):
-        
+        # Множення і ділення
         node = self.factor()
 
         while self.current_token.type in (TokenType.MUL, TokenType.DIV):
             token = self.current_token
-
-            # Обробяємо токени множення та ділення
-
-            node = BinOp(left=node, op=token, right=self ) # Дописати
+            if token.type == TokenType.MUL:
+                self.eat(TokenType.MUL)
+            elif token.type == TokenType.DIV:
+                self.eat(TokenType.DIV)
+            node = BinOp(left=node, op=token, right=self.factor())
 
         return node
 
     def expr(self):
-       
+
         node = self.term()
 
         while self.current_token.type in (TokenType.PLUS, TokenType.MINUS):
@@ -189,10 +190,10 @@ class Interpreter:
         elif node.op.type == TokenType.MUL:
             return self.visit(node.left) * self.visit(node.right)
         elif node.op.type == TokenType.DIV:
-            try:
-                return self.visit(node.left) / self.visit(node.right)
-            except ZeroDivisionError:
-                raise Exception("Division by zero")
+            right_value = self.visit(node.right)
+            if right_value == 0:
+                raise ZeroDivisionError("Ділення на нуль")
+            return self.visit(node.left) / right_value
 
     def visit_Num(self, node):
         return node.value
